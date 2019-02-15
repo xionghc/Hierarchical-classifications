@@ -3,14 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-NODE_SIZE = 174
-EMBED_DIM = 128
-WINDOW_SIZE = 3
-
-
-class SementicModel(nn.Module):
+class HierarchyModel(nn.Module):
     def __init__(self, node_size, embedding_dim):
-        super(SementicModel, self).__init__()
+        super(HierarchyModel, self).__init__()
         self.embed = nn.Embedding(node_size, embedding_dim)
 
     def l2_norm(self, emb):
