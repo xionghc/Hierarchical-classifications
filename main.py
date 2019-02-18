@@ -1,45 +1,8 @@
 import argparse
 import torch
-import torch.nn as nn
-import torch.optim as optim
+from train import train
 
-
-from model import HierarchyModel
-from utils import load_data
-
-
-def train(model, graph_file, epoch, sample_size):
-    # load data
-    traindata = load_data(graph_file, sample_size)
-
-    # loss
-    criterion = nn.MarginRankingLoss(margin=0.2)
-    cos = nn.CosineSimilarity(dim=-1)
-
-    # optimizer
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
-
-    for _ in range(epoch):
-        for s, u, v, t in traindata:
-            # forward
-            s_emb = model(s)
-            u_emb = model(u)
-            v_emb = model(v)
-
-            model.zero_grad()
-
-            us_sim = cos(u_emb, s_emb)
-            vs_sim = cos(v_emb, s_emb)
-
-            loss = criterion(us_sim, vs_sim, t)
-
-            # back ward & optimize
-            loss.backward()
-            optimizer.step()
-    print('Done')
-
-
-def evaluate_once(u, v):
+def evaluate_once(model, u, v):
     u = model(torch.tensor(u))
     v = model(torch.tensor(v))
 
@@ -55,8 +18,10 @@ if __name__ == '__main__':
     parser.add_argument('-epochs', help='Number of epochs', type=int, default=50)
     parser.add_argument('-batchsize', help='Batch size', type=int, default=50)
     parser.add_argument('-lr', help='Learning rate', type=float)
-    parser.add_argument('-sample_size', help='Sample size', type=int, default=1000)
+    parser.add_argument('-sample_size', help='Sample size', type=int, default=10000)
     opt = parser.parse_args()
 
-    model = HierarchyModel(opt.nodesize, opt.dim)
-    train(model, opt.graph, opt.epochs, opt.sample_size)
+    # model = HierarchyModel(opt.nodesize, opt.dim)
+    # train_hierarchy_model(model, opt.graph, opt.epochs, opt.sample_size)
+    train(172, feature_extract=False, use_pretrained=True)
+
