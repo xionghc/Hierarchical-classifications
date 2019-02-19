@@ -19,9 +19,10 @@ if __name__ == '__main__':
     parser.add_argument('-batchsize', help='Batch size', type=int, default=50)
     parser.add_argument('-lr', help='Learning rate', type=float)
     parser.add_argument('-sample_size', help='Sample size', type=int, default=10000)
+    parser.add_argument('-print_freq', help='Print freq', type=int, default=25)
     opt = parser.parse_args()
 
     # model = HierarchyModel(opt.nodesize, opt.dim)
     # train_hierarchy_model(model, opt.graph, opt.epochs, opt.sample_size)
-    train(172, feature_extract=False, use_pretrained=True)
+    train(172, opt, feature_extract=False, use_pretrained=True)
 

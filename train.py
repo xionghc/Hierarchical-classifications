@@ -4,8 +4,8 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, models, transforms
-from model import ResNet50_c
+from torchvision import datasets, transforms
+from model import initialize_model
 
 
 from utils import load_data
@@ -47,6 +47,8 @@ def train_hierarchy_model(model, graph_file, epoch, sample_size):
 
 
 def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_inception=False):
+    print_freq = 10
+
     since = time.time()
 
     val_acc_history = []
@@ -69,7 +71,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             running_corrects = 0
 
             # Iterate over data.
-            for inputs, labels in dataloaders[phase]:
+            for i, (inputs, labels) in enumerate(dataloaders[phase]):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
@@ -104,6 +106,10 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
 
+                if i % print_freq == print_freq - 1:
+                    print('[{}/{}, {:.0f}%]  Loss: {:.4f}  Acc: {:.4f}'.format(
+                        i, len(dataloaders[phase]), i/len(dataloaders)*100, loss.item(), torch.sum(preds == labels.data)))
+
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
 
@@ -113,6 +119,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
+                torch.save(best_model_wts, '{}_model.pth'.format(epoch))
             if phase == 'val':
                 val_acc_history.append(epoch_acc)
 
@@ -127,25 +134,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
     return model, val_acc_history
 
 
-def set_parameter_requires_grad(model, feature_extracting):
-    if feature_extracting:
-        for param in model.parameters():
-            param.requires_grad = False
-
-
-def initialize_model(model_name, num_classes, feature_extract, use_pretrained=True):
-    model_ft = None
-    input_size = 0
-
-    model_ft = ResNet50_c(pretrained=use_pretrained)
-    set_parameter_requires_grad(model_ft, feature_extract)
-    num_ftrs = model_ft.fc.in_features
-    model_ft.fc = nn.Linear(num_ftrs, num_classes)
-    # input_size = 224
-    return model_ft
-
-
-def train(num_classes, feature_extract=True, use_pretrained=True):
+def train(num_classes, opt, feature_extract=True, use_pretrained=True):
     """
     Train function for image feature extraction.
     :param num_classes:
@@ -160,7 +149,7 @@ def train(num_classes, feature_extract=True, use_pretrained=True):
     num_epochs = 25
     # end parameters
 
-    model_ft = initialize_model('ResNet50_c', num_classes, feature_extract)
+    model_ft = initialize_model('resnet50_cls', num_classes, feature_extract, use_pretrained)
 
     data_transforms = {
         'train': transforms.Compose([

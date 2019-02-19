@@ -25,7 +25,7 @@ class HierarchyModel(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers):
+    def __init__(self, block, layers, num_classes):
         self.inplanes = 64
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -38,6 +38,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7, stride=1)
+        self.layer5 = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -77,35 +78,38 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
+        x = self.layer5(x)
 
         return x
+    
 
-def resnet50(pretrained=False, **kwargs):
+def resnet50_cls(num_classes=172, pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
 
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+    model = ResNet(Bottleneck, [3, 4, 6, 3], num_classes, **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+        model_dict = model_zoo.load_url(model_urls['resnet50'])
+        model.load_state_dict(model_dict, strict=False)
     return model
-    
 
-class ResNet50_c(nn.Module):
-    """ResNet-50 with classifier.
 
-    Args:
-        num_classes (int): Number of classes.
-    """
-    expansion = 4
+def set_parameter_requires_grad(model, feature_extracting):
+    if feature_extracting:
+        for param in model.parameters():
+            param.requires_grad = False
 
-    def __init__(self, pretrained= False, num_classes=1000):
-        super(ResNet50_c, self).__init__()
-        self.resnet = ResNet(Bottleneck, [3, 4, 6, 3])
-        self.fc = nn.Linear(512 * self.expansion, num_classes)
 
-    def forward(self, x):
-        x = self.resnet(x)
-        x = self.fc(x)
-        return x
+def initialize_model(model_name, num_classes, feature_extract, use_pretrained=True):
+    model_ft = None
+
+    if model_name == 'resnet50_cls':
+        model_ft = resnet50_cls(num_classes, use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        num_ftrs = model_ft.layer5.in_features
+        model_ft.layer5 = nn.Linear(num_ftrs, num_classes)
+    elif model_name == 'resnet50_emb':
+        model_ft = None
+    return model_ft
