@@ -71,7 +71,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             running_corrects = 0
 
             # Iterate over data.
-            for i, (inputs, labels) in enumerate(dataloaders[phase]):
+            for batch_id, (inputs, labels) in enumerate(dataloaders[phase]):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
@@ -106,9 +106,9 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
 
-                if i % print_freq == print_freq - 1:
+                if batch_id % print_freq == print_freq - 1:
                     print('[{}/{}, {:.0f}%]  Loss: {:.4f}  Acc: {:.4f}'.format(
-                        i, len(dataloaders[phase]), i/len(dataloaders[phase])*100, loss.item(), running_corrects/i))
+                        batch_id, len(dataloaders[phase]), batch_id/len(dataloaders[phase])*100, running_loss/batch_id, running_corrects.double()/batch_id))
 
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
