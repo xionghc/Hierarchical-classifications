@@ -47,7 +47,7 @@ def train_hierarchy_model(model, graph_file, epoch, sample_size):
 
 
 def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_inception=False):
-    print_freq = 10
+    print_freq = 500
 
     since = time.time()
 
@@ -108,7 +108,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
 
                 if i % print_freq == print_freq - 1:
                     print('[{}/{}, {:.0f}%]  Loss: {:.4f}  Acc: {:.4f}'.format(
-                        i, len(dataloaders[phase]), i/len(dataloaders)*100, loss.item(), torch.sum(preds == labels.data)))
+                        i, len(dataloaders[phase]), i/len(dataloaders[phase])*100, loss.item(), running_corrects/i))
 
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
