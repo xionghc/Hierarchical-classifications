@@ -4,57 +4,29 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, transforms
-from model import initialize_model
+from torch.autograd import Variable
+from torchvision import transforms
+from torch.nn.modules.loss import CosineEmbeddingLoss
 
 
-from utils import load_data
+from poincare.hype.poincare import PoincareManifold
+from model import initialize_model, set_parameter_requires_grad, Embedding
+from folder import ImageFolder
 
 
-def train_hierarchy_model(model, graph_file, epoch, sample_size):
-    # load data
-    traindata = load_data(graph_file, sample_size)
-
-    # loss
-    criterion = nn.MarginRankingLoss(margin=0.2)
-    cos = nn.CosineSimilarity(dim=-1)
-
-    # optimizer
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
-
-    for epoch_id in range(epoch):
-        losses = []
-        loss = None
-        for s, u, v, t in traindata:
-            # forward
-            s_emb = model(s)
-            u_emb = model(u)
-            v_emb = model(v)
-
-            model.zero_grad()
-
-            us_sim = cos(u_emb, s_emb)
-            vs_sim = cos(v_emb, s_emb)
-
-            loss = criterion(us_sim, vs_sim, t)
-            losses.append(loss)
-
-            # back ward & optimize
-            loss.backward()
-            optimizer.step()
-        print('Epoch %d, loss = %f' % (epoch_id, loss))
-    print('Done')
-
-
-def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_inception=False):
-    print_freq = 500
-
+def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epochs=25, is_inception=False):
     since = time.time()
 
     val_acc_history = []
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
+
+    emb_model = Embedding(192, 3, PoincareManifold())
+    set_parameter_requires_grad(emb_model, True)
+    emb_model.load_state_dict(torch.load('./poincare/checkpoint/foods.pth')['model'])
+
+    cos = CosineEmbeddingLoss()
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -92,8 +64,10 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
                         loss2 = criterion(aux_outputs, labels)
                         loss = loss1 + 0.4 * loss2
                     else:
-                        outputs = model(inputs)
-                        loss = criterion(outputs, labels)
+                        outputs, aux_outputs = model(inputs)
+                        loss1 = criterion(outputs, labels)
+                        loss2 = cos(aux_outputs, emb_model(labels), torch.ones(aux_outputs.size()[0]))
+                        loss = loss1 + 0.4 * loss2
 
                     _, preds = torch.max(outputs, 1)
 
@@ -105,10 +79,6 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-
-                if batch_id % print_freq == print_freq - 1:
-                    print('[{}/{}, {:.0f}%]  Loss: {:.4f}  Acc: {:.4f}'.format(
-                        batch_id, len(dataloaders[phase]), batch_id/len(dataloaders[phase])*100, running_loss/batch_id, running_corrects.double()/batch_id))
 
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
@@ -134,9 +104,9 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
     return model, val_acc_history
 
 
-def train(num_classes, opt, feature_extract=True, use_pretrained=True):
+def train( args, num_classes, feature_extract=True, use_pretrained=True):
     """
-    Train function for image feature extraction.
+    Train resnet with softmax and hierarchy.
     :param num_classes:
     :param feature_extract: (bool) If 'False', train from scratch.
     :param use_pretrained:
@@ -149,7 +119,7 @@ def train(num_classes, opt, feature_extract=True, use_pretrained=True):
     num_epochs = 25
     # end parameters
 
-    model_ft = initialize_model('resnet50_cls', num_classes, feature_extract, use_pretrained)
+    model_ft = initialize_model('resnet_all', num_classes, feature_extract, use_pretrained)
 
     data_transforms = {
         'train': transforms.Compose([
@@ -169,7 +139,7 @@ def train(num_classes, opt, feature_extract=True, use_pretrained=True):
     print("Initializing Datasets and Dataloaders...")
 
     # Create training and validation datasets
-    image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
+    image_datasets = {x: ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
     # Create training and validation dataloaders
     dataloaders_dict = {
         x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=4)
@@ -198,8 +168,7 @@ def train(num_classes, opt, feature_extract=True, use_pretrained=True):
     criterion = nn.CrossEntropyLoss()
 
     # Train and evaluate
-    model_ft, hist = train_model(model_ft, dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs)
-
+    model_ft, hist = train_model_with_hierarchy(model_ft, dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs)
 
 # Detect if we have a GPU available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
