@@ -167,7 +167,6 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
 
             # Filter out unnecessary keys.
             pretrained_dict = {k: v for k, v in resnet50_model_dict.items() if 'cnn.'+k in model_ft.state_dict()}
-            print(pretrained_dict)
             model_ft.state_dict().update(pretrained_dict)
             model_ft.load_state_dict(pretrained_dict, strict=False)
 

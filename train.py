@@ -116,7 +116,7 @@ def train(args, num_classes, feature_extract=True, use_pretrained=True):
     input_size = args.input_size
     data_dir = args.dset
     batch_size = args.batch_size
-    num_epochs = args.epoches
+    num_epochs = args.epochs
     # end parameters
 
     model_ft = initialize_model('resnet_all', num_classes, feature_extract, use_pretrained)
