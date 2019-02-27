@@ -4,7 +4,6 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.autograd import Variable
 from torchvision import transforms
 from torch.nn.modules.loss import CosineEmbeddingLoss
 
@@ -114,10 +113,10 @@ def train(args, num_classes, feature_extract=True, use_pretrained=True):
     :return:
     """
     # parameters
-    input_size = 224
+    input_size = args.input_size
     data_dir = args.dset
-    batch_size = 8
-    num_epochs = 25
+    batch_size = args.batch_size
+    num_epochs = args.epoches
     # end parameters
 
     model_ft = initialize_model('resnet_all', num_classes, feature_extract, use_pretrained)
