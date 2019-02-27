@@ -162,11 +162,15 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
 
     elif model_name == 'resnet_all':
         model_ft = Net(num_classes, 3) # embedding_size = 128
+        if use_pretrained:
+            resnet50_model_dict = model_zoo.load_url(model_urls['resnet50'])
+            # Filter out unnecessary keys.
+            pretrained_dict= {k: v for k, v in resnet50_model_dict.items() if k in model_ft.state_dict()}
+
+            model_ft.load_state_dict(pretrained_dict, strict=False)
 
     return model_ft
 
 
 if __name__ == '__main__':
-    net = Net(172, 128)
-    for name, paras in net.named_parameters():
-        print(name)
+    initialize_model('resnet_all', 172, False)

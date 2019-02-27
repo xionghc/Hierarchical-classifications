@@ -25,6 +25,7 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
     emb_model = Embedding(192, 3, PoincareManifold())
     set_parameter_requires_grad(emb_model, True)
     emb_model.load_state_dict(torch.load('./poincare/checkpoint/foods.pth')['model'])
+    emb_model = emb_model.to(device)
 
     cos = CosineEmbeddingLoss()
 
