@@ -104,7 +104,7 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
     return model, val_acc_history
 
 
-def train( args, num_classes, feature_extract=True, use_pretrained=True):
+def train(args, num_classes, feature_extract=True, use_pretrained=True):
     """
     Train resnet with softmax and hierarchy.
     :param num_classes:
@@ -114,7 +114,7 @@ def train( args, num_classes, feature_extract=True, use_pretrained=True):
     """
     # parameters
     input_size = 224
-    data_dir = 'data'
+    data_dir = args.dset
     batch_size = 8
     num_epochs = 25
     # end parameters

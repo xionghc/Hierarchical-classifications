@@ -1,10 +1,11 @@
 import argparse
-from train_reset import train_resnet
+from train_resnet import train_resnet
 from train import train
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Hierarchy model')
+    parser.add_argument('-dset', help='Dataset dir', type=str, default='data')
     parser.add_argument('-graph', help='File of edge list', type=str, default='graph/hierarchy.edgelist')
     parser.add_argument('-nodesize', help='Node size', type=int, default=192)
     parser.add_argument('-num_classes', help='Number of classes', type=int, default=172)

@@ -21,7 +21,8 @@ def has_file_allowed_extension(filename, extensions):
 
 def find_classes(dir):
     classes = [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir, d))]
-    classes.sort(key=int) # can only be used in folders are digit.
+    # TODO : 'key=int' can only be use in folders are digit(s)
+    classes.sort(key=int)
     class_to_idx = {classes[i]: i for i in range(len(classes))}
     return classes, class_to_idx
 
