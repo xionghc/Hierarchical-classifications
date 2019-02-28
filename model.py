@@ -19,7 +19,7 @@ class Embedding(graph.Embedding):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers):
+    def __init__(self, block, layers, num_classes=1000):
         self.inplanes = 64
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -32,6 +32,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7, stride=1)
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -70,9 +71,10 @@ class ResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
+        img_emb = x.view(x.size(0), -1)
+        x = self.fc(img_emb)
 
-        return x
+        return x, img_emb
 
 
 class MapFunction(nn.Module):
@@ -105,17 +107,15 @@ class Net(nn.Module):
             p.requires_grad(True)
     
 
-def resnet50(num_classes, pretrained=False, **kwargs):
+def resnet50(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
 
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
-    model.add_module('fc', nn.Linear(2048, num_classes))
     if pretrained:
-        model_dict = model_zoo.load_url(model_urls['resnet50'])
-        model.load_state_dict(model_dict, strict=False)
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
     return model
 
 
@@ -129,19 +129,13 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
     model_ft = None
 
     if model_name == 'resnet50_cls':
-        model_ft = resnet50(num_classes, use_pretrained)
+        model_ft = resnet50(use_pretrained)
         set_parameter_requires_grad(model_ft, feature_extract)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, num_classes) # classifier
 
-    elif model_name == 'resnet50_emb':
-        model_ft = resnet50(num_classes, use_pretrained)
-        set_parameter_requires_grad(model_ft, feature_extract)
-        num_ftrs = model_ft.fc.in_features
-        model_ft.fc = nn.Linear(num_ftrs, num_classes) # image embedding
-
     elif model_name == 'resnet_all':
-        model_ft = Net(num_classes, 3) # embedding_size = 128
+        model_ft = Net(num_classes, 3)
         if use_pretrained:
             resnet50_model_dict = model_zoo.load_url(model_urls['resnet50'])
 

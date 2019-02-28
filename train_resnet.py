@@ -55,7 +55,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
                         loss2 = criterion(aux_outputs, labels)
                         loss = loss1 + 0.4 * loss2
                     else:
-                        outputs = model(inputs)
+                        outputs, _ = model(inputs)
                         loss = criterion(outputs, labels)
 
                     _, preds = torch.max(outputs, 1)
@@ -102,10 +102,10 @@ def train_resnet(args, num_classes,feature_extract=True, use_pretrained=True):
     :return:
     """
     # parameters
-    input_size = 224
-    data_dir = 'data'
-    batch_size = 8
-    num_epochs = 25
+    input_size = args.input_size
+    data_dir = args.dset
+    batch_size = args.batch_size
+    num_epochs = args.epochs
     # end parameters
 
     model_ft = initialize_model('resnet50_cls', num_classes, feature_extract, use_pretrained)

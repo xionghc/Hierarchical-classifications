@@ -64,10 +64,8 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
                         loss2 = criterion(aux_outputs, labels)
                         loss = loss1 + 0.4 * loss2
                     else:
-                        outputs, aux_outputs = model(inputs)
-                        loss1 = criterion(outputs, labels)
-                        loss2 = cos(aux_outputs, emb_model(labels), torch.ones(aux_outputs.size()[0]))
-                        loss = loss1 + 0.4 * loss2
+                        outputs, _ = model(inputs)
+                        loss = criterion(outputs, labels)
 
                     _, preds = torch.max(outputs, 1)
 
