@@ -1,28 +1,8 @@
 import math
-import torch as th
 import torch.nn as nn
-# import torch.nn.functional as F
 from torchvision.models.resnet import Bottleneck, model_zoo, model_urls
 
 import poincare.hype.graph as graph
-
-
-# class HierarchyModel(nn.Module):
-#     def __init__(self, node_size, embedding_dim):
-#         super(HierarchyModel, self).__init__()
-#         self.embed = nn.Embedding(node_size, embedding_dim)
-#
-#     def l2_norm(self, emb):
-#         if len(emb.size()) > 1:
-#             dim = 1
-#         else:
-#             dim = 0
-#         return F.normalize(emb, dim=dim)
-#
-#     def forward(self, node):
-#         embedding = self.embed(node)
-#         normalized_emb = self.l2_norm(embedding)
-#         return normalized_emb
 
 
 class Embedding(graph.Embedding):
