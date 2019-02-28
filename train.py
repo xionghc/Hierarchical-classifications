@@ -7,7 +7,6 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.nn.modules.loss import CosineEmbeddingLoss
 
-
 from poincare.hype.poincare import PoincareManifold
 from model import initialize_model, set_parameter_requires_grad, Embedding
 from folder import ImageFolder
@@ -24,7 +23,7 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
     emb_model = Embedding(192, 3, PoincareManifold())
     set_parameter_requires_grad(emb_model, True)
     emb_model.load_state_dict(torch.load('./poincare/checkpoint/foods.pth')['model'])
-    emb_model = emb_model.to(device)
+    emb_model = nn.DataParallel(emb_model, device_ids=[0])
 
     cos = CosineEmbeddingLoss()
 
@@ -44,8 +43,6 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
 
             # Iterate over data.
             for batch_id, (inputs, labels) in enumerate(dataloaders[phase]):
-                inputs = inputs.to(device)
-                labels = labels.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -64,8 +61,10 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
                         loss2 = criterion(aux_outputs, labels)
                         loss = loss1 + 0.4 * loss2
                     else:
-                        outputs, _ = model(inputs)
-                        loss = criterion(outputs, labels)
+                        outputs, aux_outputs = model(inputs)
+                        loss1 = criterion(outputs, labels)
+                        loss2 = cos(aux_outputs, emb_model(labels), torch.ones(aux_outputs.size()[0]))
+                        loss = loss1 + 0.2 * loss2
 
                     _, preds = torch.max(outputs, 1)
 
@@ -144,7 +143,7 @@ def train(args, num_classes, feature_extract=True, use_pretrained=True):
         for x in['train', 'val']}
 
     # Send the model to GPU
-    model_ft = model_ft.to(device)
+    model_ft = nn.DataParallel(model_ft, device_ids=[0, 1])
 
     params_to_update = model_ft.parameters()
     print("Params to learn:")
@@ -167,6 +166,3 @@ def train(args, num_classes, feature_extract=True, use_pretrained=True):
 
     # Train and evaluate
     model_ft, hist = train_model_with_hierarchy(model_ft, dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs)
-
-# Detect if we have a GPU available
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

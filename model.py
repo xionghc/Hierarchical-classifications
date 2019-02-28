@@ -92,15 +92,13 @@ class MapFunction(nn.Module):
 class Net(nn.Module):
     def __init__(self, num_classes, embedding_size):
         super(Net, self).__init__()
-        self.cnn = ResNet(Bottleneck, [3, 4, 6, 3])
-        self.classifier = nn.Linear(2048, num_classes)
+        self.cnn = ResNet(Bottleneck, [3, 4, 6, 3], num_classes)
         self.map = MapFunction(embedding_size)
 
     def forward(self, x):
-        img_emb = self.cnn(x)
-        pred = self.classifier(img_emb)
-        maped_emb = self.map(img_emb)
-        return pred, maped_emb
+        x, emb = self.cnn(x)
+        emb = self.map(emb)
+        return x, emb
 
     def finetune_cnn(self, allow=True):
         for p in self.cnn.parameters():

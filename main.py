@@ -18,5 +18,5 @@ if __name__ == '__main__':
     parser.add_argument('-print_freq', help='Print freq', type=int, default=25)
     args = parser.parse_args()
 
-    train_resnet(args, 172, feature_extract=False, use_pretrained=False)
-    # train(args, 172, feature_extract=False, use_pretrained=True)
+    # train_resnet(args, 172, feature_extract=False, use_pretrained=True)
+    train(args, 172, feature_extract=False, use_pretrained=True)

@@ -35,8 +35,6 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
 
             # Iterate over data.
             for batch_id, (inputs, labels) in enumerate(dataloaders[phase]):
-                inputs = inputs.to(device)
-                labels = labels.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -135,7 +133,7 @@ def train_resnet(args, num_classes,feature_extract=True, use_pretrained=True):
         for x in['train', 'val']}
 
     # Send the model to GPU
-    model_ft = model_ft.to(device)
+    model_ft = nn.DataParallel(model_ft, device_ids=[0, 1])
 
     params_to_update = model_ft.parameters()
     print("Params to learn:")
@@ -158,6 +156,3 @@ def train_resnet(args, num_classes,feature_extract=True, use_pretrained=True):
 
     # Train and evaluate
     model_ft, hist = train_model(model_ft, dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs)
-
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
