@@ -104,6 +104,7 @@ def train_resnet(args, num_classes,feature_extract=True, use_pretrained=True):
     data_dir = args.dset
     batch_size = args.batch_size
     num_epochs = args.epochs
+    device_ids = args.device_ids
     # end parameters
 
     model_ft = initialize_model('resnet50_cls', num_classes, feature_extract, use_pretrained)
@@ -133,7 +134,7 @@ def train_resnet(args, num_classes,feature_extract=True, use_pretrained=True):
         for x in['train', 'val']}
 
     # Send the model to GPU
-    model_ft = nn.DataParallel(model_ft, device_ids=[0, 1])
+    model_ft = nn.DataParallel(model_ft, device_ids=device_ids)
 
     params_to_update = model_ft.parameters()
     print("Params to learn:")

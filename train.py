@@ -8,7 +8,7 @@ from torchvision import transforms
 from torch.nn.modules.loss import CosineEmbeddingLoss
 
 from poincare.hype.poincare import PoincareManifold
-from model import initialize_model, set_parameter_requires_grad, Embedding
+from model import initialize_model, set_parameter_requires_grad, data_parallel, Embedding
 from folder import ImageFolder
 
 
@@ -23,7 +23,6 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
     emb_model = Embedding(192, 3, PoincareManifold())
     set_parameter_requires_grad(emb_model, True)
     emb_model.load_state_dict(torch.load('./poincare/checkpoint/foods.pth')['model'])
-    emb_model = nn.DataParallel(emb_model, device_ids=[0])
 
     cos = CosineEmbeddingLoss()
 
@@ -43,7 +42,6 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
 
             # Iterate over data.
             for batch_id, (inputs, labels) in enumerate(dataloaders[phase]):
-
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
@@ -61,7 +59,8 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
                         loss2 = criterion(aux_outputs, labels)
                         loss = loss1 + 0.4 * loss2
                     else:
-                        outputs, aux_outputs = model(inputs)
+                        outputs, aux_outputs = data_parallel(model, inputs, None)
+                        # outputs, aux_outputs = model(inputs)
                         loss1 = criterion(outputs, labels)
                         loss2 = cos(aux_outputs, emb_model(labels), torch.ones(aux_outputs.size()[0]))
                         loss = loss1 + 0.2 * loss2
@@ -114,6 +113,7 @@ def train(args, num_classes, feature_extract=True, use_pretrained=True):
     data_dir = args.dset
     batch_size = args.batch_size
     num_epochs = args.epochs
+    device_ids = args.device_ids
     # end parameters
 
     model_ft = initialize_model('resnet_all', num_classes, feature_extract, use_pretrained)
@@ -143,7 +143,7 @@ def train(args, num_classes, feature_extract=True, use_pretrained=True):
         for x in['train', 'val']}
 
     # Send the model to GPU
-    model_ft = nn.DataParallel(model_ft, device_ids=[0, 1])
+    model_ft = nn.DataParallel(model_ft, device_ids=device_ids)
 
     params_to_update = model_ft.parameters()
     print("Params to learn:")
