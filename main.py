@@ -28,3 +28,4 @@ if __name__ == '__main__':
 
     # train_resnet(args, 172, feature_extract=False, use_pretrained=True)
     train(args, 172, feature_extract=False, use_pretrained=True)
+

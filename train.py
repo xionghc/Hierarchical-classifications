@@ -23,7 +23,8 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
     emb_model = Embedding(192, 3, PoincareManifold())
     set_parameter_requires_grad(emb_model, True)
     emb_model.load_state_dict(torch.load('./poincare/checkpoint/foods.pth')['model'])
-
+    emb_model = emb_model.to(device)
+   
     cos = CosineEmbeddingLoss()
 
     for epoch in range(num_epochs):
@@ -42,6 +43,8 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
 
             # Iterate over data.
             for batch_id, (inputs, labels) in enumerate(dataloaders[phase]):
+                inputs = inputs.to(device)
+                labels = labels.to(device) 
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
@@ -61,7 +64,7 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
                     else:
                         outputs, aux_outputs = model(inputs)
                         loss1 = criterion(outputs, labels)
-                        loss2 = cos(aux_outputs, emb_model(labels), torch.ones(aux_outputs.size()[0]))
+                        loss2 = cos(aux_outputs, emb_model(labels), torch.ones(aux_outputs.size()[0]).cuda())
                         loss = loss1 + 0.2 * loss2
 
                     _, preds = torch.max(outputs, 1)
