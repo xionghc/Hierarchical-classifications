@@ -1,7 +1,8 @@
 import argparse
 import torch
 from train_resnet import train_resnet
-from train import train
+# from train import train
+from train_emb import train
 
 
 if __name__ == '__main__':
@@ -28,4 +29,3 @@ if __name__ == '__main__':
 
     # train_resnet(args, 172, feature_extract=False, use_pretrained=True)
     train(args, 172, feature_extract=False, use_pretrained=True)
-

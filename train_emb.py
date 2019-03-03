@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
 from torch.nn.modules.loss import CosineEmbeddingLoss
+import numpy as np
 
 from poincare.hype.poincare import PoincareManifold
 from model import initialize_model, set_parameter_requires_grad, Embedding
@@ -24,6 +25,8 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
     set_parameter_requires_grad(emb_model, True)
     emb_model.load_state_dict(torch.load('./poincare/checkpoint/foods.pth')['model'])
     emb_model = emb_model.to(device)
+    idx = torch.LongTensor([i for i in range(192)])
+    all_emb = emb_model(idx)
    
     cos = CosineEmbeddingLoss()
 
@@ -40,6 +43,7 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
 
             running_loss = 0.0
             running_corrects = 0
+            hits1, hits2, hits5 = 0, 0, 0
 
             # Iterate over data.
             for batch_id, (inputs, labels) in enumerate(dataloaders[phase]):
@@ -62,12 +66,17 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
                         loss2 = criterion(aux_outputs, labels)
                         loss = loss1 + 0.4 * loss2
                     else:
-                        outputs, aux_outputs = model(inputs)
-                        loss1 = criterion(outputs, labels)
-                        loss2 = cos(aux_outputs, emb_model(labels), torch.ones(aux_outputs.size()[0]).to(device))
-                        loss = loss1 + 0.2 * loss2
+                        outputs1, outputs2 = model(inputs)
 
-                    _, preds = torch.max(outputs, 1)
+                        loss = cos(outputs2, emb_model(labels), torch.ones(inputs.size(0)).to(device))
+
+                    _, preds = torch.max(outputs1, 1)
+                    preds2 = torch.mm(outputs2, all_emb.t())
+                    hit1, hit2, hit5 = accuracy(preds2, labels, topk=(1, 2, 5))
+                    hits1 += hit1
+                    hits2 += hit2
+                    hits5 += hit5
+                    print("hit1: {}".format(hits1.data))
 
                     # backward + optimize only if in training phase
                     if phase == 'train':
@@ -82,6 +91,12 @@ def train_model_with_hierarchy(model, dataloaders, criterion, optimizer, num_epo
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
 
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
+            print('Hierarchy:')
+            print('Acc@1: {:.4f} \t'
+                  'Acc@2: {:.4f} \t'
+                  'Acc@5: {:.4f}'.format(hits1/len(dataloaders[phase].dataset),
+                                         hits1/len(dataloaders[phase].dataset),
+                                         hits1/len(dataloaders[phase].dataset)))
 
             # deep copy the model
             if phase == 'val' and epoch_acc > best_acc:
@@ -118,6 +133,9 @@ def train(args, num_classes, feature_extract=True, use_pretrained=True):
     # end parameters
 
     model_ft = initialize_model('resnet_all', num_classes, feature_extract, use_pretrained)
+
+    # Todo: fixed the parameters of cnn.
+    model_ft.finetune_cnn(False)
 
     data_transforms = {
         'train': transforms.Compose([
@@ -167,6 +185,23 @@ def train(args, num_classes, feature_extract=True, use_pretrained=True):
 
     # Train and evaluate
     model_ft, hist = train_model_with_hierarchy(model_ft, dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs)
+
+
+def accuracy(output, target, topk=(1,)):
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = target.size(0)
+
+        _, pred = output.topk(maxk, 1, True, True)
+        pred = pred.t()
+        correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+        res = []
+        corrects = []
+        for k in topk:
+            corrects.append(correct[:k].view(-1).float().sum(0, keepdim=True))
+        return corrects
 
 # Detect if we have a GPU available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

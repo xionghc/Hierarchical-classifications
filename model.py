@@ -102,7 +102,7 @@ class Net(nn.Module):
 
     def finetune_cnn(self, allow=True):
         for p in self.cnn.parameters():
-            p.requires_grad(True)
+            p.requires_grad = allow
     
 
 def resnet50(pretrained=False, **kwargs):
