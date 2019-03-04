@@ -84,6 +84,7 @@ class MapFunction(nn.Module):
             nn.Linear(2048, 512),
             nn.Linear(512, embedding_size)
         )
+        self.dropout =nn.Dropout(p=0.5)
 
     def forward(self, x):
         return self.f(x)
@@ -138,12 +139,8 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
             resnet50_model_dict = model_zoo.load_url(model_urls['resnet50'])
 
             # Filter out unnecessary keys.
-            pretrained_dict = {k: v for k, v in resnet50_model_dict.items() if 'cnn.'+k in model_ft.state_dict()}
+            pretrained_dict = {'cnn'+k: v for k, v in resnet50_model_dict.items() if 'cnn.'+k in model_ft.state_dict()}
             model_ft.state_dict().update(pretrained_dict)
             model_ft.load_state_dict(pretrained_dict, strict=False)
 
     return model_ft
-
-
-if __name__ == '__main__':
-    initialize_model('resnet_all', 172, False)
