@@ -2,20 +2,6 @@ import math
 import torch.nn as nn
 from torchvision.models.resnet import Bottleneck, model_zoo, model_urls
 
-import poincare.hype.graph as graph
-
-
-class Embedding(graph.Embedding):
-    def __init__(self, size, dim, manifold, sparse=True):
-        super(Embedding, self).__init__(size, dim, manifold, sparse)
-        self.lossfn = nn.functional.cross_entropy
-
-    def _forward(self, e):
-        return e
-
-    def loss(self, preds, targets, weight=None, size_average=True):
-        return self.lossfn(preds, targets)
-
 
 class ResNet(nn.Module):
 

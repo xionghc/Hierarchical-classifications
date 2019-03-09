@@ -10,6 +10,7 @@ import torchvision.transforms as transforms
 from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter
 from folder import ImageFolder
 from model import initialize_model
+from poincare import Distance
 
 
 def main_worker(args):
@@ -114,6 +115,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     top1 = AverageMeter()
     top5 = AverageMeter()
 
+    # label embedding
+    weights = torch.FloatTensor((192, 100))
+    label_emb = nn.Embedding.from_pretrained(weights)
+
+    poin_dis_fn = Distance()
+
     # switch to train mode
     model.train()
 
@@ -127,12 +134,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         target = target.to(args.device)
 
         # compute output
-        output, _ = model(input)
-        loss = criterion(output, target)
+        output, aux_outputs = model(input)
+        loss1 = criterion(output, target)
+        loss2 = torch.mean(poin_dis_fn(aux_outputs, label_emb[target]))
+        loss = loss1 + 0.4*loss2
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
-        losses.update(loss.item(), input.size(0))
+        losses.update(loss1.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
 
