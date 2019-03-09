@@ -10,15 +10,19 @@ def dist_p(u,v):
     uu = 1. + th.div(z,((1-th.norm(u,2,1)**2)*(1-th.norm(v,2,1)**2)))
     return acosh(uu)
 
-# def vector_distance_batch(vector_1, vector_all):
-#     euclidean_dists = th.norm(vector_1 - vector_all, dim=1)
-#     norm = th.norm(vector_1)
-#     all_norms = th.norm(vector_all, dim=1)
-#     return acosh(
-#         1 + 2 * (
-#             (euclidean_dists ** 2) / ((1 - norm ** 2) * (1 - all_norms ** 2))
-#         )
-#     )
+
+def dist_row(self, vector_1, vector_all):
+    m = vector_all.size(0)
+    return self.dist_p(vector_1.clone().unsqueeze(0).repeat(m, 1), vector_all)
+
+
+def dist_matrix(self, vectors1, vectors2):
+    w, h = vectors1.size(0), vectors2.size(0)
+    rets = th.zeros(w, h, dtype=th.double)
+    for i in range(w):
+        rets[i, :] = self.dist_row(i)
+    return rets
+
 
 def test_dist_p():
     a = th.tensor([[1.,1]])
