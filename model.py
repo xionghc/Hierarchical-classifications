@@ -2,6 +2,14 @@ import math
 import torch.nn as nn
 from torchvision.models.resnet import Bottleneck, model_zoo, model_urls
 
+class Embedding(nn.Module):
+    def __init__(self, size, dim):
+        super(Embedding, self).__init__()
+        self.lt = nn.Embedding(size, dim)
+
+    def forward(self, inputs):
+        return self.lt(inputs)
+
 
 class ResNet(nn.Module):
 
@@ -120,7 +128,7 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
         model_ft.fc = nn.Linear(num_ftrs, num_classes) # classifier
 
     elif model_name == 'resnet_all':
-        model_ft = Net(num_classes, 3)
+        model_ft = Net(num_classes, 100)
         if use_pretrained:
             resnet50_model_dict = model_zoo.load_url(model_urls['resnet50'])
 

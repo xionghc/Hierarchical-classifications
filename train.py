@@ -9,8 +9,8 @@ import torchvision.transforms as transforms
 
 from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter
 from folder import ImageFolder
-from model import initialize_model
-from poincare import Distance
+from model import initialize_model, Embedding
+from poincare import PoincareDistance
 
 
 def main_worker(args):
@@ -24,7 +24,7 @@ def main_worker(args):
     else:
         print('=> creating model')
         model = initialize_model('resnet_all', 172, True)
-
+    model = model.to(args.device)
     params_to_update = model.parameters()
     print("Params to learn:")
 
@@ -116,11 +116,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     top5 = AverageMeter()
 
     # label embedding
-    weights = torch.FloatTensor((192, 100))
-    label_emb = nn.Embedding.from_pretrained(weights)
-
-    poin_dis_fn = Distance()
-
+    label_emb = nn.Embedding(192, 100)
+    label_emb = label_emb.to(args.device)
+    
     # switch to train mode
     model.train()
 
@@ -129,25 +127,26 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        if args.gpu is not None:
-            input = input.to(args.device)
+        input = input.to(args.device)
         target = target.to(args.device)
 
         # compute output
         output, aux_outputs = model(input)
-        loss1 = criterion(output, target)
-        loss2 = torch.mean(poin_dis_fn(aux_outputs, label_emb[target]))
-        loss = loss1 + 0.4*loss2
+        # loss1 = criterion(output, target)
+        loss = PoincareDistance()(aux_outputs, label_emb(target)).mean()
+        print(loss)
+        # loss = loss1 + 0.4*loss2
+
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
-        losses.update(loss1.item(), input.size(0))
+        losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         optimizer.step()
 
         # measure elapsed time
@@ -177,8 +176,7 @@ def validate(val_loader, model, criterion, args):
     with torch.no_grad():
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-            if args.gpu is not None:
-                input = input.to(args.device)
+            input = input.to(args.device)
             target = target.to(args.device)
 
             # compute output
