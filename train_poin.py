@@ -1,7 +1,5 @@
 from gensim.models.poincare import PoincareModel
-from gensim.viz.poincare import poincare_2d_visualization
 from gensim.models.poincare import ReconstructionEvaluation
-from plotly.offline import plot
 
 
 def load_edges_list(file_path):

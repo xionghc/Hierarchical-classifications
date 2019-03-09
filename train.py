@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter
 from folder import ImageFolder
 from model import initialize_model, Embedding
-from poincare import PoincareDistance
+from poincare import dist_p
 
 
 def main_worker(args):
@@ -116,7 +116,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     top5 = AverageMeter()
 
     # label embedding
-    label_emb = nn.Embedding(192, 100)
+    weight = torch.randn(192, 100)
+    label_emb = nn.Embedding.from_pretrained(weight)
     label_emb = label_emb.to(args.device)
     
     # switch to train mode
@@ -133,7 +134,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # compute output
         output, aux_outputs = model(input)
         # loss1 = criterion(output, target)
-        loss = PoincareDistance()(aux_outputs, label_emb(target)).mean()
+        loss = dist_p(aux_outputs, label_emb(target)).mean()
         print(loss)
         # loss = loss1 + 0.4*loss2
 
@@ -146,7 +147,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
-        loss.backward(retain_graph=True)
+        loss.backward()
         optimizer.step()
 
         # measure elapsed time
