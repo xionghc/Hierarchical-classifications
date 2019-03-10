@@ -135,9 +135,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         output, aux_outputs = model(input)
         # loss1 = criterion(output, target)
         loss = dist_p(aux_outputs, label_emb(target)).mean()
-        print(loss)
         # loss = loss1 + 0.4*loss2
-
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
