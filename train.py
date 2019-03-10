@@ -35,7 +35,6 @@ def main_worker(args):
 
     e_weights = torch.FloatTensor(train_label_emb())
     label_model = nn.Embedding.from_pretrained(e_weights)
-    label_model.weight.requires_grad = False
     label_model = label_model.to(args.device)
 
     optimizer = optim.SGD(model.parameters(), args.lr,
@@ -136,11 +135,11 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         # compute output
         output, aux_outputs = model(input)
         loss1 = dist_p(aux_outputs, label_model(target)).mean()
-        loss2 = nn.L1Loss()(torch.norm(aux_outputs, 2, 1), label_norm[target])
+        loss2 = nn.MSELoss()(torch.norm(aux_outputs, 2, 1), label_norm[target])
         loss = loss1 + loss2
 
         # measure accuracy and record loss
-        preds = dist_matrix(aux_outputs, label_model.weight).to(args.device)
+        preds = dist_matrix(aux_outputs, label_model.weight[0:171]).to(args.device)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
@@ -186,8 +185,8 @@ def validate(val_loader, model, label_model, criterion, args):
             loss = dist_p(aux_output, label_model(target)).mean()
 
             # measure accuracy and record loss
-            preds = dist_matrix(aux_output, label_model.weight)
-            acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
+            preds = dist_matrix(aux_output, label_model.weight[0:171])
+            acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=False)
             losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
