@@ -10,7 +10,8 @@ import torchvision.transforms as transforms
 from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter
 from folder import ImageFolder
 from model import initialize_model, Embedding
-from poincare import dist_p
+from poincare import dist_p, dist_matrix
+from train_poin import train_label_emb
 
 
 def main_worker(args):
@@ -31,6 +32,11 @@ def main_worker(args):
     for name, param in model.named_parameters():
         if param.requires_grad == True:
             print("\t", name)
+
+    e_weights = train_label_emb()
+    label_model = nn.Embedding.from_pretrained(e_weights)
+    label_model.weight.requires_grad = False
+    label_model = label_model.to(args.device)
 
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
@@ -90,10 +96,10 @@ def main_worker(args):
         adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(dataloaders_dict['train'], model, criterion, optimizer, epoch, args)
+        train(dataloaders_dict['train'], model, label_model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc1 = validate(dataloaders_dict['val'], model, criterion, args)
+        acc1 = validate(dataloaders_dict['val'], model, label_model, criterion, args)
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -108,17 +114,12 @@ def main_worker(args):
             }, is_best)
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args):
+def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
-
-    # label embedding
-    weight = torch.randn(192, 100)
-    label_emb = nn.Embedding.from_pretrained(weight)
-    label_emb = label_emb.to(args.device)
     
     # switch to train mode
     model.train()
@@ -134,11 +135,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # compute output
         output, aux_outputs = model(input)
         # loss1 = criterion(output, target)
-        loss = dist_p(aux_outputs, label_emb(target)).mean()
+        loss = dist_p(aux_outputs, label_model(target)).mean()
         # loss = loss1 + 0.4*loss2
 
         # measure accuracy and record loss
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
+        preds = dist_matrix(aux_outputs, label_model.weight)
+        acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
@@ -163,7 +165,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
 
 
-def validate(val_loader, model, criterion, args):
+def validate(val_loader, model, label_model, criterion, args):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -179,11 +181,12 @@ def validate(val_loader, model, criterion, args):
             target = target.to(args.device)
 
             # compute output
-            output, _ = model(input)
-            loss = criterion(output, target)
+            output, aux_output = model(input)
+            loss = dist_p(aux_output, label_model(target)).mean()
 
             # measure accuracy and record loss
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            preds = dist_matrix(aux_output, label_model.weight)
+            acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
             losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))

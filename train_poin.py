@@ -29,7 +29,7 @@ def re_rank_embeddings(rank_list, model):
     return emb
 
 
-def get_emb():
+def train_label_emb():
     namelist = []
     with open('namelist.txt') as f:
         namelist = [line.strip() for line in f]
