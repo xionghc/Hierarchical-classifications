@@ -13,6 +13,7 @@ from model import initialize_model, Embedding
 from poincare import dist_p, dist_matrix
 from train_poin import train_label_emb
 
+best_acc1 = 0
 
 def main_worker(args):
     global best_acc1
@@ -106,7 +107,6 @@ def main_worker(args):
 
         save_checkpoint({
             'epoch': epoch + 1,
-            'arch': args.arch,
             'state_dict': model.state_dict(),
             'best_acc1': best_acc1,
             'optimizer' : optimizer.state_dict(),
