@@ -1,5 +1,7 @@
 from gensim.models.poincare import PoincareModel
-from gensim.models.poincare import ReconstructionEvaluation
+import torch
+import gensim
+import numpy as np
 
 
 def load_edges_list(file_path):
@@ -12,16 +14,37 @@ def load_edges_list(file_path):
     return relations
 
 
-relations = load_edges_list('food.csv')
-nodes = []
+def train(file_path, dim=100, epochs=200):
+    relations = load_edges_list(file_path)
+    model = PoincareModel(relations, size=dim, negative=2)
+    model.train(epochs, print_every=10)
+    print('Done')
+    return model
 
-for pair in relations:
-    nodes.append(pair[0])
-    nodes.append(pair[1])
-nodes = set(nodes)
-print(len(nodes))
-model = PoincareModel(relations, size=100, negative=2)
-model.train(epochs=50)
-print('Done')
 
-print('Evaluate')
+def re_rank_embeddings(rank_list, model):
+    emb = np.ndarray((192, 100))
+    for idx, item in enumerate(rank_list):
+        emb[idx] = model.kv.word_vec(item)
+    return emb
+
+
+def get_emb():
+    namelist = []
+    with open('namelist.txt') as f:
+        namelist = [line.strip() for line in f]
+
+    model = train('food.csv', dim=100, epochs=200)
+    print(type(model.kv.vectors))
+    embeddings = re_rank_embeddings(namelist, model)
+    return embeddings
+
+
+def t():
+    model = train('food.csv', dim=100, epochs=200)
+    print(model.kv.save_word2vec_format('foods_D100.emb'))
+
+    model = gensim.models.poincare.PoincareKeyedVectors.load_word2vec_format('foods_D100.emb')
+    print(type(model.vectors))
+    weights = torch.FloatTensor(model.vectors)
+    print(weights.Size())
