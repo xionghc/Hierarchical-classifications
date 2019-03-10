@@ -23,7 +23,7 @@ def train(file_path, dim=100, epochs=200):
 
 
 def re_rank_embeddings(rank_list, model):
-    emb = np.ndarray((192, 100))
+    emb = np.ndarray((192, 100), dtype=np.float)
     for idx, item in enumerate(rank_list):
         emb[idx] = model.kv.word_vec(item)
     return emb
@@ -31,11 +31,10 @@ def re_rank_embeddings(rank_list, model):
 
 def train_label_emb():
     namelist = []
-    with open('namelist.txt') as f:
+    with open('./data/namelist.txt') as f:
         namelist = [line.strip() for line in f]
 
-    model = train('food.csv', dim=100, epochs=200)
-    print(type(model.kv.vectors))
+    model = train('./data/food.csv', dim=100, epochs=50)
     embeddings = re_rank_embeddings(namelist, model)
     return embeddings
 
@@ -48,3 +47,6 @@ def t():
     print(type(model.vectors))
     weights = torch.FloatTensor(model.vectors)
     print(weights.Size())
+
+if __name__ == '__main__':
+    print(train_label_emb())

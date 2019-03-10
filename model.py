@@ -1,4 +1,5 @@
 import math
+import torch as th
 import torch.nn as nn
 from torchvision.models.resnet import Bottleneck, model_zoo, model_urls
 
@@ -65,34 +66,34 @@ class ResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.avgpool(x)
-        img_emb = x.view(x.size(0), -1)
-        x = self.fc(img_emb)
+        img_ftrs = x.view(x.size(0), -1)
+        x = self.fc(img_ftrs)
 
-        return x, img_emb
+        return x, img_ftrs
 
 
-class MapFunction(nn.Module):
+class Transform(nn.Module):
     def __init__(self, embedding_size):
-        super(MapFunction, self).__init__()
-        self.f = nn.Sequential(
-            nn.Linear(2048, 512),
-            nn.Linear(512, embedding_size)
-        )
-        self.dropout =nn.Dropout(p=0.5)
+        super(Transform, self).__init__()
+        self.fc = nn.Linear(2048, embedding_size)
 
     def forward(self, x):
-        return self.f(x)
+        x = self.fc(x)
+        return x
 
 
 class Net(nn.Module):
     def __init__(self, num_classes, embedding_size):
         super(Net, self).__init__()
         self.cnn = ResNet(Bottleneck, [3, 4, 6, 3], num_classes)
-        self.map = MapFunction(embedding_size)
+        self.map = Transform(embedding_size)
+        self.norm = None
 
     def forward(self, x):
-        x, emb = self.cnn(x)
-        emb = self.map(emb)
+        x, ftrs = self.cnn(x)
+        self.norm = th.norm(ftrs, 2, 1).unsqueeze(1)
+
+        emb = self.map(th.div(ftrs, self.norm))
         return x, emb
 
     def finetune_cnn(self, allow=True):

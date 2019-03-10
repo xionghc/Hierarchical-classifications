@@ -18,7 +18,7 @@ def dist_row(vector_1, vector_all):
 
 def dist_matrix(vectors1, vectors2):
     w, h = vectors1.size(0), vectors2.size(0)
-    rets = th.zeros(w, h, dtype=th.double)
+    rets = th.zeros(w, h, dtype=th.float)
     for i in range(w):
         rets[i, :] = dist_row(vectors1[i], vectors2)
     return rets

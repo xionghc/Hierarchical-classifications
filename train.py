@@ -33,7 +33,7 @@ def main_worker(args):
         if param.requires_grad == True:
             print("\t", name)
 
-    e_weights = train_label_emb()
+    e_weights = torch.FloatTensor(train_label_emb())
     label_model = nn.Embedding.from_pretrained(e_weights)
     label_model.weight.requires_grad = False
     label_model = label_model.to(args.device)
@@ -120,7 +120,8 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
-    
+
+    label_norm = label_model.weight.norm(dim=1)
     # switch to train mode
     model.train()
 
@@ -134,9 +135,9 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
 
         # compute output
         output, aux_outputs = model(input)
-        # loss1 = criterion(output, target)
-        loss = dist_p(aux_outputs, label_model(target)).mean()
-        # loss = loss1 + 0.4*loss2
+        loss1 = dist_p(aux_outputs, label_model(target)).mean()
+        loss2 = nn.L1Loss()(torch.norm(aux_outputs, 2, 1), label_norm[target])
+        loss = loss1 + loss2
 
         # measure accuracy and record loss
         preds = dist_matrix(aux_outputs, label_model.weight).to(args.device)
