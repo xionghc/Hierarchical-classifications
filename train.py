@@ -139,7 +139,7 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         # loss = loss1 + 0.4*loss2
 
         # measure accuracy and record loss
-        preds = dist_matrix(aux_outputs, label_model.weight)
+        preds = dist_matrix(aux_outputs, label_model.weight).to(args.device)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
