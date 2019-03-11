@@ -7,9 +7,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 
-from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter
+from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter, sample_negs
 from folder import ImageFolder
-from model import initialize_model, Embedding
+from model import init_encoder_model
 from poincare import dist_p, dist_matrix
 from train_poin import train_label_emb
 
@@ -22,23 +22,23 @@ def main_worker(args):
 
     if args.pretrained:
         print('=> using pre-trained model')
-        model = initialize_model('resnet_all', 172, True)
+        model = init_encoder_model(args.embed_size, args.pretrained)
     else:
         print('=> creating model')
-        model = initialize_model('resnet_all', 172, True)
+        model = init_encoder_model(args.embed_size, args.pretrained)
     model = model.to(args.device)
-    params_to_update = model.parameters()
-    print("Params to learn:")
 
-    for name, param in model.named_parameters():
-        if param.requires_grad == True:
-            print("\t", name)
+    params_to_update = list(model.linear1.parameters()) + list(model.linear2.parameters())
+    print("Params to learn:")
+    # for name, param in model.named_parameters():
+    #     if param.requires_grad == True:
+    #         print("\t", name)
 
     e_weights = torch.FloatTensor(train_label_emb())
     label_model = nn.Embedding.from_pretrained(e_weights)
     label_model = label_model.to(args.device)
 
-    optimizer = optim.SGD(model.parameters(), args.lr,
+    optimizer = optim.SGD(params_to_update, args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
@@ -133,13 +133,17 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         target = target.to(args.device)
 
         # compute output
-        output, aux_outputs = model(input)
-        loss1 = dist_p(aux_outputs, label_model(target)).mean()
-        loss2 = nn.MSELoss()(torch.norm(aux_outputs, 2, 1), label_norm[target])
+        output, norm = model(input)
+        neg = sample_negs(target)
+        dists_1 = dist_p(output, label_model(target))
+        dists_2 = dist_p(output, label_model(neg))
+        loss1 = nn.MarginRankingLoss(margin=0.2)(dists_2, dists_1, torch.ones_like(dists_2).to(args.device))
+
+        loss2 = nn.MSELoss()(norm, label_norm[target])
         loss = loss1 + loss2
 
         # measure accuracy and record loss
-        preds = dist_matrix(aux_outputs, label_model.weight[0:171]).to(args.device)
+        preds = dist_matrix(output, label_model.weight[0:171]).to(args.device)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
@@ -212,6 +216,7 @@ def validate(val_loader, model, label_model, criterion, args):
 def main():
     parser = argparse.ArgumentParser(description='Train Hierarchy model')
     parser.add_argument('-data', help='Dataset dir', type=str, default='data')
+    parser.add_argument('-embed_size', help='Embedding size', type=int, default=100)
     parser.add_argument('--start-epoch', help='manual epoch number (useful on restarts)', type=int, default=0)
     parser.add_argument('-epochs', help='Number of epochs', type=int, default=50)
     parser.add_argument('-input_size', help='Input size', type=int, default=224)
@@ -225,8 +230,8 @@ def main():
                         dest='weight_decay')
     parser.add_argument('-print_freq', help='Print freq', type=int, default=50)
     parser.add_argument('-evaluate', type=bool, default=False)
-    parser.add_argument('-pretrained', help='Pretrained', type=bool, default=True)
-    parser.add_argument('-resume', help='Resume', type=bool, default=False)
+    parser.add_argument('-pretrained', help='Pretrained', type=str, default=None)
+    parser.add_argument('-resume', help='Resume', type=str, default=None)
 
     parser.add_argument('-nodesize', help='Node size', type=int, default=192)
     args = parser.parse_args()
