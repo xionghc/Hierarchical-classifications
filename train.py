@@ -5,7 +5,10 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+from triplet_loss import OnlineTripletLoss, SemihardNegativeTripletSelector
 
 from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter, sample_negs
 from folder import ImageFolder
@@ -37,13 +40,17 @@ def main_worker(args):
     e_weights = torch.FloatTensor(train_label_emb())
     label_model = nn.Embedding.from_pretrained(e_weights)
     label_model = label_model.to(args.device)
+    all_label_emb = label_model.weight
 
     optimizer = optim.SGD(params_to_update, args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().to(args.device)
+    # criterion = nn.CrossEntropyLoss().to(args.device)
+    criterion = nn.NLLLoss().to(args.device)
+
+    # criterion = OnlineTripletLoss(0.2, SemihardNegativeTripletSelector(0.2))
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -133,17 +140,20 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         target = target.to(args.device)
 
         # compute output
-        output, norm = model(input)
-        neg = sample_negs(target)
-        dists_1 = dist_p(output, label_model(target))
-        dists_2 = dist_p(output, label_model(neg))
-        loss1 = nn.MarginRankingLoss(margin=0.2)(dists_2, dists_1, torch.ones_like(dists_2).to(args.device))
+        output, pred_norm = model(input)
+        score = dist_matrix(output, label_model.weight[:172])
+        normalized_score = score/score.sum(1).view(-1, 1)
 
-        loss2 = nn.MSELoss()(norm, label_norm[target])
+        print(target)
+        loss1 = F.nll_loss(normalized_score.log(), target)
+        print(loss1)
+        # TODO: neagative log loss
+        loss2 = nn.MSELoss()(pred_norm, label_norm[target])
+        print(loss2)
         loss = loss1 + loss2
 
         # measure accuracy and record loss
-        preds = dist_matrix(output, label_model.weight[0:171]).to(args.device)
+        preds = dist_matrix(output, label_model.weight).to(args.device)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
@@ -185,13 +195,14 @@ def validate(val_loader, model, label_model, criterion, args):
             target = target.to(args.device)
 
             # compute output
-            output, aux_output = model(input)
-            loss = dist_p(aux_output, label_model(target)).mean()
+            output, pred_norm = model(input)
+            loss1 = dist_p(output, label_model(target)).mean()
+
 
             # measure accuracy and record loss
-            preds = dist_matrix(aux_output, label_model.weight[0:171])
+            preds = dist_matrix(output, label_model.weight[0:172])
             acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=False)
-            losses.update(loss.item(), input.size(0))
+            losses.update(loss1.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
 
@@ -213,6 +224,10 @@ def validate(val_loader, model, label_model, criterion, args):
 
     return top1.avg
 
+
+def f(vectors1, vectors2):
+    return 1 / (dist_matrix(vectors1, vectors2) + 1e-16)
+
 def main():
     parser = argparse.ArgumentParser(description='Train Hierarchy model')
     parser.add_argument('-data', help='Dataset dir', type=str, default='data')
@@ -221,7 +236,7 @@ def main():
     parser.add_argument('-epochs', help='Number of epochs', type=int, default=50)
     parser.add_argument('-input_size', help='Input size', type=int, default=224)
     parser.add_argument('-num_classes', help='Number of classes', type=int, default=172)
-    parser.add_argument('-batch_size', help='Batch size', type=int, default=32)
+    parser.add_argument('-batch_size', help='Batch size', type=int, default=8)
     parser.add_argument('-gpu', help='gpu', type=int, default=0)
     parser.add_argument('-lr', help='Learning rate', type=float, default=0.001)
     parser.add_argument('-momentum', help='momentum', type=float, default=0.9)

@@ -1,5 +1,8 @@
 import shutil
 import torch
+import random
+
+from PIL import Image
 
 
 class AverageMeter(object):
@@ -28,9 +31,23 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
 
 def adjust_learning_rate(optimizer, epoch, args):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 30))
+    lr = args.lr * (0.1 ** (epoch // 15))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
+
+def _adjust_learning_rate(optimizer, gamma, epoch, step_index, iteration, epoch_size, args):
+    """Sets the learning rate
+    # Adapted from PyTorch Imagenet example:
+    # https://github.com/pytorch/examples/blob/master/imagenet/main.py
+    """
+    if epoch < 6:
+        lr = 1e-6 + (args.lr-1e-6) * iteration / (epoch_size * 5)
+    else:
+        lr = args.lr * (gamma ** (step_index))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return lr
 
 
 def accuracy(output, target, topk=(1,), largest=True):
@@ -51,4 +68,11 @@ def accuracy(output, target, topk=(1,), largest=True):
 
 
 def sample_negs(positives):
-    return torch.LongTensor(len(positives)).random_(0, 171)
+    negs = []
+    for p in positives:
+        while True:
+            n = random.randint(0, 171)
+            if n != p:
+                negs.append(n)
+                break
+    return torch.LongTensor(negs)
