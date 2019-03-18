@@ -47,10 +47,7 @@ def main_worker(args):
                                 weight_decay=args.weight_decay)
 
     # define loss function (criterion) and optimizer
-    # criterion = nn.CrossEntropyLoss().to(args.device)
-    criterion = nn.NLLLoss().to(args.device)
-
-    # criterion = OnlineTripletLoss(0.2, SemihardNegativeTripletSelector(0.2))
+    criterion = nn.CrossEntropyLoss().to(args.device)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -142,14 +139,7 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         # compute output
         output = model(input)
 
-        # loss = dist_p(output, label_model(target)).mean()
-
-        dist_mat = dist_matrix(output, label_model.weight[:172])
-        dist_mat = 1 / (dist_mat + 1e-16)
-        # normalized_score = dist_mat/dist_mat.sum(1).view(-1, 1)
-
-        # loss = F.nll_loss(normalized_score.log(), target)
-        loss = nn.CrossEntropyLoss()(dist_mat, target)
+        loss = dist_p(output, label_model(target)).mean()
 
         # measure accuracy and record loss
         preds = dist_matrix(output, label_model.weight[:172]).to(args.device)
@@ -195,12 +185,7 @@ def validate(val_loader, model, label_model, criterion, args):
 
             # compute output
             output, pred_norm = model(input)
-            # loss = dist_p(output, label_model(target)).mean()
-            dist_mat = dist_matrix(output, label_model.weight[:172])
-            dist_mat = 1 / (dist_mat + 1e-16)
-
-            loss = nn.CrossEntropyLoss()(dist_mat, target)
-
+            loss = dist_p(output, label_model(target)).mean()
 
             # measure accuracy and record loss
             preds = dist_matrix(output, label_model.weight[0:172])
@@ -227,9 +212,6 @@ def validate(val_loader, model, label_model, criterion, args):
 
     return top1.avg
 
-
-def f(vectors1, vectors2):
-    return 1 / (dist_matrix(vectors1, vectors2) + 1e-16)
 
 def main():
     parser = argparse.ArgumentParser(description='Train Hierarchy model')
