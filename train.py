@@ -42,7 +42,7 @@ def main_worker(args):
     label_model = label_model.to(args.device)
     all_label_emb = label_model.weight
 
-    optimizer = optim.SGD(params_to_update, args.lr,
+    optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
@@ -140,21 +140,20 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         target = target.to(args.device)
 
         # compute output
-        output, pred_norm = model(input)
-        score = dist_matrix(output, label_model.weight[:172])
-        normalized_score = score/score.sum(1).view(-1, 1)
+        output = model(input)
 
-        print(target)
-        loss1 = F.nll_loss(normalized_score.log(), target)
-        print(loss1)
-        # TODO: neagative log loss
-        loss2 = nn.MSELoss()(pred_norm, label_norm[target])
-        print(loss2)
-        loss = loss1 + loss2
+        # loss = dist_p(output, label_model(target)).mean()
+
+        dist_mat = dist_matrix(output, label_model.weight[:172])
+        dist_mat = 1 / (dist_mat + 1e-16)
+        # normalized_score = dist_mat/dist_mat.sum(1).view(-1, 1)
+
+        # loss = F.nll_loss(normalized_score.log(), target)
+        loss = nn.CrossEntropyLoss()(dist_mat, target)
 
         # measure accuracy and record loss
-        preds = dist_matrix(output, label_model.weight).to(args.device)
-        acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
+        preds = dist_matrix(output, label_model.weight[:172]).to(args.device)
+        acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=True)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
@@ -196,13 +195,17 @@ def validate(val_loader, model, label_model, criterion, args):
 
             # compute output
             output, pred_norm = model(input)
-            loss1 = dist_p(output, label_model(target)).mean()
+            # loss = dist_p(output, label_model(target)).mean()
+            dist_mat = dist_matrix(output, label_model.weight[:172])
+            dist_mat = 1 / (dist_mat + 1e-16)
+
+            loss = nn.CrossEntropyLoss()(dist_mat, target)
 
 
             # measure accuracy and record loss
             preds = dist_matrix(output, label_model.weight[0:172])
-            acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=False)
-            losses.update(loss1.item(), input.size(0))
+            acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=True)
+            losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
 

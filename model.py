@@ -23,9 +23,8 @@ class EncoderCNN(nn.Module):
         features = features.reshape(features.size(0), -1)
 
         features_normalized = torch.div(features, torch.norm(features, 2, 1).unsqueeze(1))
-        norm = self.linear2(features_normalized)
-        features = self.linear1(features).mul(norm)
-        return features, norm
+        features = self.linear1(features_normalized)
+        return features
 
 
 def set_parameter_requires_grad(model, feature_extracting):
