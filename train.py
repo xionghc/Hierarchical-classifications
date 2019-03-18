@@ -143,7 +143,7 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
 
         # measure accuracy and record loss
         preds = dist_matrix(output, label_model.weight[:172]).to(args.device)
-        acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=True)
+        acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
@@ -184,12 +184,12 @@ def validate(val_loader, model, label_model, criterion, args):
             target = target.to(args.device)
 
             # compute output
-            output, pred_norm = model(input)
+            output = model(input)
             loss = dist_p(output, label_model(target)).mean()
 
             # measure accuracy and record loss
             preds = dist_matrix(output, label_model.weight[0:172])
-            acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=True)
+            acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=False)
             losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
