@@ -34,7 +34,7 @@ def train_label_emb():
     with open('./data/namelist.txt') as f:
         namelist = [line.strip() for line in f]
 
-    model = train('./data/food.csv', dim=100, epochs=50)
+    model = train('./data/food.csv', dim=100, epochs=200)
     embeddings = re_rank_embeddings(namelist, model)
     return embeddings
 

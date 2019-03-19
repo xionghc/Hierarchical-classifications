@@ -40,8 +40,7 @@ def main_worker(args):
     e_weights = torch.FloatTensor(train_label_emb())
     label_model = nn.Embedding.from_pretrained(e_weights)
     label_model = label_model.to(args.device)
-    all_label_emb = label_model.weight
-
+    
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
