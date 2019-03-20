@@ -141,19 +141,13 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
 
         # compute output
         output = model(input)
+        scores = f(output, label_model.weight[:172])
+        normalized_score = F.logsigmoid(scores / scores.sum(dim=1, keepdim=True))
 
-        # loss = dist_p(output, label_model(target)).mean()
-
-        dist_mat = dist_matrix(output, label_model.weight[:172])
-        dist_mat = 1 / (dist_mat + 1e-16)
-        # normalized_score = dist_mat/dist_mat.sum(1).view(-1, 1)
-
-        # loss = F.nll_loss(normalized_score.log(), target)
-        loss = nn.CrossEntropyLoss()(dist_mat, target)
+        loss = criterion(normalized_score.to(args.device), target)
 
         # measure accuracy and record loss
-        preds = dist_matrix(output, label_model.weight[:172]).to(args.device)
-        acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=True)
+        acc1, acc5 = accuracy(scores, target, topk=(1, 5), largest=True)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
@@ -194,17 +188,14 @@ def validate(val_loader, model, label_model, criterion, args):
             target = target.to(args.device)
 
             # compute output
-            output, pred_norm = model(input)
-            # loss = dist_p(output, label_model(target)).mean()
-            dist_mat = dist_matrix(output, label_model.weight[:172])
-            dist_mat = 1 / (dist_mat + 1e-16)
+            output = model(input)
+            scores = f(output, label_model.weight[:172])
+            normalized_score = F.logsigmoid(scores / scores.sum(dim=1, keepdim=True))
 
-            loss = nn.CrossEntropyLoss()(dist_mat, target)
-
+            loss = criterion(normalized_score.to(args.device), target)
 
             # measure accuracy and record loss
-            preds = dist_matrix(output, label_model.weight[0:172])
-            acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=True)
+            acc1, acc5 = accuracy(scores, target, topk=(1, 5), largest=True)
             losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
