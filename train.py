@@ -142,7 +142,7 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         # compute output
         output = model(input)
         scores = f(output, label_model.weight[:172])
-        normalized_score = F.logsigmoid(scores / scores.sum(dim=1, keepdim=True))
+        normalized_score = scores / scores.sum(dim=1, keepdim=True)
 
         loss = criterion(normalized_score.to(args.device), target)
 
