@@ -48,7 +48,7 @@ def main_worker(args):
 
     # define loss function (criterion) and optimizer
     # criterion = nn.CrossEntropyLoss().to(args.device)
-    criterion = nn.NLLLoss().to(args.device)
+    criterion = nn.BCELoss().to(args.device)
 
     # criterion = OnlineTripletLoss(0.2, SemihardNegativeTripletSelector(0.2))
 
@@ -144,10 +144,12 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         scores = f(output, label_model.weight[:172])
         normalized_score = scores / scores.sum(dim=1, keepdim=True)
 
-        loss = criterion(normalized_score.to(args.device), target)
+        mask_target = torch.zeros_like(normalized_score).scatter_(1, target.unsqueeze(1), 1)
+
+        loss = criterion(normalized_score.to(args.device), mask_target.to(args.device))
 
         # measure accuracy and record loss
-        acc1, acc5 = accuracy(scores, target, topk=(1, 5), largest=True)
+        acc1, acc5 = accuracy(normalized_score, target, topk=(1, 5), largest=True)
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
@@ -190,12 +192,13 @@ def validate(val_loader, model, label_model, criterion, args):
             # compute output
             output = model(input)
             scores = f(output, label_model.weight[:172])
-            normalized_score = F.logsigmoid(scores / scores.sum(dim=1, keepdim=True))
+            normalized_score = scores / scores.sum(dim=1, keepdim=True)
+            mask_target = torch.zeros_like(normalized_score).scatter_(1, target.unsqueeze(1), 1)
 
-            loss = criterion(normalized_score.to(args.device), target)
+            loss = criterion(normalized_score.to(args.device), mask_target.to(args.device))
 
             # measure accuracy and record loss
-            acc1, acc5 = accuracy(scores, target, topk=(1, 5), largest=True)
+            acc1, acc5 = accuracy(normalized_score, target, topk=(1, 5), largest=True)
             losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
@@ -220,7 +223,8 @@ def validate(val_loader, model, label_model, criterion, args):
 
 
 def f(vectors1, vectors2):
-    return 1 / (dist_matrix(vectors1, vectors2) + 1e-16)
+    return 2 / (dist_matrix(vectors1, vectors2).exp() + 1)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Train Hierarchy model')
