@@ -40,7 +40,6 @@ def main_worker(args):
     e_weights = torch.FloatTensor(train_label_emb())
     label_model = nn.Embedding.from_pretrained(e_weights)
     label_model = label_model.to(args.device)
-    all_label_emb = label_model.weight
 
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
@@ -127,7 +126,6 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
     top1 = AverageMeter()
     top5 = AverageMeter()
 
-    label_norm = label_model.weight.norm(dim=1)
     # switch to train mode
     model.train()
 
@@ -142,9 +140,10 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         # compute output
         output = model(input)
         scores = f(output, label_model.weight[:172])
+
         normalized_score = scores / scores.sum(dim=1, keepdim=True)
 
-        mask_target = torch.zeros_like(normalized_score).scatter_(1, target.unsqueeze(1), 1)
+        mask_target = torch.zeros_like(normalized_score).scatter(1, target.unsqueeze(1), 1)
 
         loss = criterion(normalized_score.to(args.device), mask_target.to(args.device))
 
