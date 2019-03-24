@@ -8,8 +8,8 @@ class EncoderCNN(nn.Module):
         """Load the pretrained ResNet-50 and replace top fc layer."""
         super(EncoderCNN, self).__init__()
         resnet = models.resnet50(pretrained=True)
-        resnet.fc = nn.Linear(2048, 172)
-        resnet.load_state_dict(torch.load('/media/Share/hcxiong/models/model_resnet.pth'))  # load ckp.
+        # resnet.fc = nn.Linear(2048, 172)
+        # resnet.load_state_dict(torch.load('/media/Share/hcxiong/models/model_resnet.pth'))  # load ckp.
         # print('Load pretrained success')
         modules = list(resnet.children())[:-1]  # delete the last fc layer.
         self.resnet = nn.Sequential(*modules)
