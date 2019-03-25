@@ -2,8 +2,6 @@ import shutil
 import torch
 import random
 
-from PIL import Image
-
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""

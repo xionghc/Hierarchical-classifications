@@ -5,12 +5,10 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from triplet_loss import OnlineTripletLoss, SemihardNegativeTripletSelector
 
-from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter, sample_negs
+from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter
 from folder import ImageFolder
 from model import init_encoder_model
 from poincare import dist_p, dist_matrix

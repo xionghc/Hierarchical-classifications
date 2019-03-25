@@ -39,14 +39,5 @@ def train_label_emb():
     return embeddings
 
 
-def t():
-    model = train('food.csv', dim=100, epochs=200)
-    print(model.kv.save_word2vec_format('foods_D100.emb'))
-
-    model = gensim.models.poincare.PoincareKeyedVectors.load_word2vec_format('foods_D100.emb')
-    print(type(model.vectors))
-    weights = torch.FloatTensor(model.vectors)
-    print(weights.Size())
-
 if __name__ == '__main__':
     print(train_label_emb())
