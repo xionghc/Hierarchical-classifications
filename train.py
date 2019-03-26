@@ -187,6 +187,8 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
+    losses_norm = AverageMeter()
+    losses_dist = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
 
@@ -212,11 +214,13 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         label_weight = label_model.weight[:172]
         loss_dist = pairwise_pc_distance(output, label_weight, target)
         loss_norm = norm_pc_distance(output, label_weight, target)
-        loss = 2 *loss_norm + loss_dist
+        loss = loss_norm + loss_dist
         
         preds = dist_matrix(output, label_model.weight[:172]).to(args.device)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
         losses.update(loss.item(), input.size(0))
+        losses_norm.update(loss_norm.item(), input.size(0))
+        losses_dist.update(loss_dist.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
 
@@ -234,11 +238,14 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                  'Loss_norm {ln.val:.4f} ({ln.avg:.4f})\t'
+                  'Loss_dist {ld.val:.4f} ({ld.avg:.4f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+                   data_time=data_time, ln=losses_norm, ld=losses_dist,
+                   loss=losses, top1=top1, top5=top5))
 
 
 def validate(val_loader, model, label_model, criterion, args):
@@ -301,9 +308,9 @@ def main():
     parser.add_argument('-epochs', help='Number of epochs', type=int, default=50)
     parser.add_argument('-input_size', help='Input size', type=int, default=224)
     parser.add_argument('-num_classes', help='Number of classes', type=int, default=172)
-    parser.add_argument('-batch_size', help='Batch size', type=int, default=96)
+    parser.add_argument('-batch_size', help='Batch size', type=int, default=32)
     parser.add_argument('-gpu', help='gpu', type=int, default=0)
-    parser.add_argument('-lr', help='Learning rate', type=float, default=0.003)
+    parser.add_argument('-lr', help='Learning rate', type=float, default=0.001)
     parser.add_argument('-momentum', help='momentum', type=float, default=0.9)
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
