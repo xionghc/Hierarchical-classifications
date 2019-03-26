@@ -118,6 +118,71 @@ def main_worker(args):
             }, is_best)
 
 
+def pairwise_pc_distance(matrix_1, matrix_2, targets):
+    # matrix_1 is N-by-Dim
+    # matrix_2 is C-by-Dim
+    # return N-by-1 
+
+    eps = 1e-19
+    # Pairwise Euclidean Distance
+    N, M = matrix_1.size(0), matrix_2.size(0)
+    norms_1 = torch.sum(matrix_1**2, dim=1, keepdim=True) # matrix_1's l2-norm, shape (N, 1)
+    norms_2 = torch.sum(matrix_2**2, dim=1, keepdim=True) # matrix_2's l2-norm, shape (M, 1)
+    
+    norms_1_sta = norms_1.expand(N, M); # expand norms_1 to (N, M)
+    norms_2_sta = norms_2.transpose(0, 1).expand(N, M) # expand norms_2 to (N, M)
+
+    #print("1 max {}".format(torch.max(norms_1_sta)))
+    #print("1 min {}".format(torch.min(norms_1_sta)))
+
+    euc_dist = norms_1_sta + norms_2_sta - 2 * matrix_1.mm(matrix_2.t())
+    # Denorm
+    denorm_1_sta = torch.clamp( 1 - norms_1_sta, eps, 1 - eps) # (N, M)
+    denorm_2_sta = torch.clamp( 1 - norms_2_sta, eps, 1 - eps) # (N, M)
+
+    denorm = denorm_1_sta * denorm_2_sta # (N, M)
+
+    # Euclidean / Denorm
+    dist_stage = torch.div(euc_dist , denorm + eps) # (N, M)
+    dist_stage = 1 + 2 * dist_stage
+
+    dist_stage = torch.log(dist_stage + torch.sqrt(dist_stage ** 2 - 1))
+
+    scores = 1 / ( dist_stage + eps)
+    #l2norm = torch.norm(scores, p=2, dim=1, keepdim=True).detach() + eps
+    #scores  = scores / l2norm
+
+    dist_stage = dist_stage.gather(1, targets.unsqueeze(1)) # Select corresponding nodes (N, 1)
+
+    loss_dist = torch.mean(dist_stage)
+    return loss_dist
+
+
+def norm_pc_distance(matrix_1, matrix_2, targets):
+    eps = 1e-19
+    N, M = matrix_1.size(0), matrix_2.size(0)
+    norms_1 = torch.sum(matrix_1**2, dim=1, keepdim=True) # matrix_1's l2-norm, shape (N, 1)
+    # To coord-origin dist
+    euc_dist_1 = norms_1
+    denorm_1   = torch.clamp(1 - norms_1, eps, 1 - eps)
+    dist_stage_1 = torch.div(euc_dist_1, denorm_1 + eps)
+    dist_stage_1 = 1 + 2 * dist_stage_1
+    dist_stage_1 = torch.log(dist_stage_1 + torch.sqrt(dist_stage_1 ** 2 - 1))
+
+    norms_2 = torch.sum(matrix_2**2, dim=1, keepdim=True) # matrix_2's l2-norm, shape (M, 1)
+    norms_2_sta = norms_2.transpose(0, 1).expand(N, M) # expand norms_2 to (N, M)
+    euc_dist_2 = norms_2_sta
+    denorm_2   = torch.clamp(1 - norms_2_sta, eps, 1 - eps)
+    dist_stage_2 = torch.div(euc_dist_2, denorm_2)
+    dist_stage_2 = 1 + 2 * dist_stage_2 # N-by-M
+    dist_stage_2 = torch.log(dist_stage_2 + torch.sqrt(dist_stage_2 ** 2 - 1))
+    # select by index
+    dist_stage_2 = dist_stage_2.gather(1, targets.unsqueeze(1)) # Select corresponding nodes (N, 1)
+    loss_norm = torch.abs(dist_stage_1 - dist_stage_2)
+    loss_norm = torch.mean(loss_norm)
+    return loss_norm
+
+
 def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -140,9 +205,15 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         # compute output
         output = model(input)
 
-        loss = dist_p(output, label_model(target)).mean()
-
+        #loss = dist_p(output, label_model(target)).mean()
         # measure accuracy and record loss
+        #preds = dist_matrix(output, label_model.weight[:172]).to(args.device)
+        #acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
+        label_weight = label_model.weight[:172]
+        loss_dist = pairwise_pc_distance(output, label_weight, target)
+        loss_norm = norm_pc_distance(output, label_weight, target)
+        loss = 2 *loss_norm + loss_dist
+        
         preds = dist_matrix(output, label_model.weight[:172]).to(args.device)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
         losses.update(loss.item(), input.size(0))
@@ -187,11 +258,18 @@ def validate(val_loader, model, label_model, criterion, args):
 
             # compute output
             output = model(input)
-            loss = dist_p(output, label_model(target)).mean()
+            #loss = dist_p(output, label_model(target)).mean()
 
             # measure accuracy and record loss
-            preds = dist_matrix(output, label_model.weight[0:172])
-            acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=False)
+            #preds = dist_matrix(output, label_model.weight[0:172])
+            #acc1, acc5 = accuracy(preds.to(args.device), target, topk=(1, 5), largest=False)
+            label_weight = label_model.weight[:172]
+            loss_dist = pairwise_pc_distance(output, label_weight, target)
+            loss_norm = norm_pc_distance(output, label_weight, target)
+            loss = 2 *loss_norm + loss_dist
+        
+            preds = dist_matrix(output, label_model.weight[:172]).to(args.device)
+            acc1, acc5 = accuracy(preds, target, topk=(1, 5), largest=False)
             losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
@@ -223,9 +301,9 @@ def main():
     parser.add_argument('-epochs', help='Number of epochs', type=int, default=50)
     parser.add_argument('-input_size', help='Input size', type=int, default=224)
     parser.add_argument('-num_classes', help='Number of classes', type=int, default=172)
-    parser.add_argument('-batch_size', help='Batch size', type=int, default=8)
+    parser.add_argument('-batch_size', help='Batch size', type=int, default=96)
     parser.add_argument('-gpu', help='gpu', type=int, default=0)
-    parser.add_argument('-lr', help='Learning rate', type=float, default=0.001)
+    parser.add_argument('-lr', help='Learning rate', type=float, default=0.003)
     parser.add_argument('-momentum', help='momentum', type=float, default=0.9)
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
