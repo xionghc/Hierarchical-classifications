@@ -15,7 +15,6 @@ class EncoderCNN(nn.Module):
         self.resnet = nn.Sequential(*modules)
         self.linear1 = nn.Linear(resnet.fc.in_features, embed_size)
         self.linear2 = nn.Linear(resnet.fc.in_features, 1)
-        # self.bn = nn.BatchNorm1d(embed_size, momentum=0.01)
 
     def forward(self, images):
         """Extract feature vectors from input images."""

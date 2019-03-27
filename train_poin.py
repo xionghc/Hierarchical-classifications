@@ -1,6 +1,4 @@
 from gensim.models.poincare import PoincareModel
-import torch
-import gensim
 import numpy as np
 
 
