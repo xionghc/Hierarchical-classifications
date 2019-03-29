@@ -159,7 +159,7 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if i % args.print_freq == 0:
+        if i % args.print_freq == args.print_freq - 1:
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
@@ -200,7 +200,7 @@ def validate(val_loader, model, label_model, criterion, args):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            if i % args.print_freq == 0:
+            if i % args.print_freq == args.print_freq-1:
                 print('Test: [{0}/{1}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
@@ -223,14 +223,14 @@ def main():
     parser.add_argument('-epochs', help='Number of epochs', type=int, default=50)
     parser.add_argument('-input_size', help='Input size', type=int, default=224)
     parser.add_argument('-num_classes', help='Number of classes', type=int, default=172)
-    parser.add_argument('-batch_size', help='Batch size', type=int, default=8)
+    parser.add_argument('-batch_size', help='Batch size', type=int, default=32)
     parser.add_argument('-gpu', help='gpu', type=int, default=0)
     parser.add_argument('-lr', help='Learning rate', type=float, default=0.001)
     parser.add_argument('-momentum', help='momentum', type=float, default=0.9)
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
-    parser.add_argument('-print_freq', help='Print freq', type=int, default=50)
+    parser.add_argument('-print_freq', help='Print freq', type=int, default=1000)
     parser.add_argument('-evaluate', type=bool, default=False)
     parser.add_argument('-pretrained', help='Pretrained', type=str, default=None)
     parser.add_argument('-resume', help='Resume', type=str, default=None)
