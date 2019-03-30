@@ -30,20 +30,20 @@ def main_worker(args):
     model = model.to(args.device)
 
     # print("Params to learn:")
-    model_params = []
-    for name, param in dict(model.named_parameters()).items():
-        if name.find("bias") > -1:
-            print('Model Layer {} will be trained @ {}'.format(name, args.lr*2))
-            model_params.append({'params': param, 'lr': args.lr*2, 'weight_decay': 0})
-        else:
-            print('Model Layer {} will be trained @ {}'.format(name, args.lr))
-            model_params.append({'params': param, 'lr': args.lr, 'weight_decay': args.weight_decay})
+    # model_params = []
+    # for name, param in dict(model.named_parameters()).items():
+    #     if name.find("bias") > -1:
+    #         print('Model Layer {} will be trained @ {}'.format(name, args.lr*2))
+    #         model_params.append({'params': param, 'lr': args.lr*2, 'weight_decay': 0})
+    #     else:
+    #         print('Model Layer {} will be trained @ {}'.format(name, args.lr))
+    #         model_params.append({'params': param, 'lr': args.lr, 'weight_decay': args.weight_decay})
 
     e_weights = torch.FloatTensor(train_label_emb())
     label_model = nn.Embedding.from_pretrained(e_weights)
     label_model = label_model.to(args.device)
     
-    optimizer = optim.SGD(model_params, args.lr,
+    optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
@@ -152,7 +152,6 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), 10.0)
         optimizer.step()
 
         # measure elapsed time
