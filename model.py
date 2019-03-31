@@ -14,7 +14,6 @@ class EncoderCNN(nn.Module):
         modules = list(resnet.children())[:-1]  # delete the last fc layer.
         self.resnet = nn.Sequential(*modules)
         self.linear1 = nn.Linear(resnet.fc.in_features, embed_size)
-        self.linear2 = nn.Linear(resnet.fc.in_features, 1)
 
     def forward(self, images):
         """Extract feature vectors from input images."""
