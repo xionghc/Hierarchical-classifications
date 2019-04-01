@@ -16,7 +16,7 @@ def split_data(label, ori_dir, des_dir):
 def clear_data(data_dir):
     ori_data = 'ready_chinese_food'
 
-    labels = ['TR.txt', 'TE.txt', 'VAL.txt']
+    labels = ['TR.txt', 'VAL.txt', 'TE.txt']
     des_dirs = ['train', 'val', 'test']
 
     for label, des_dir in zip(labels, des_dirs):
