@@ -36,5 +36,5 @@ def init_encoder_model(embed_size, pretrained):
 
     if pretrained:
         pre_state_dict = torch.load(pretrained)
-        model_ft.load_state_dict(pre_state_dict, False)
+        model_ft.load_state_dict(pre_state_dict['state_dict'], False)
     return model_ft
