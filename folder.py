@@ -178,3 +178,13 @@ class ImageFolder(DatasetFolder):
                                           transform=transform,
                                           target_transform=target_transform)
         self.imgs = self.samples
+
+
+class ImageFolderWithPaths(ImageFolder):
+    """Custom dataset that includes image file paths.
+    Extends torchvision.datasets.ImageFolder
+    """
+    def __getitem__(self, index):
+        sample, target = super(ImageFolderWithPaths, self).__getitem__(index)
+        path = self.imgs[index][0]
+        return sample, target, path
