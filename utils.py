@@ -63,14 +63,3 @@ def accuracy(output, target, topk=(1,), largest=True):
             correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
-
-
-def sample_negs(positives):
-    negs = []
-    for p in positives:
-        while True:
-            n = random.randint(0, 171)
-            if n != p:
-                negs.append(n)
-                break
-    return torch.LongTensor(negs)
