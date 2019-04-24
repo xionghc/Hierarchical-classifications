@@ -1,3 +1,5 @@
+from poincare import ToPoincare
+
 import torch as torch
 import torch.nn as nn
 from torchvision import models
@@ -30,6 +32,15 @@ def set_parameter_requires_grad(model, feature_extracting):
         for param in model.parameters():
             param.requires_grad = False
 
+class HyperCNN(nn.Module):
+    def __init__(self, embed_size):
+        self.encoder = EncoderCNN(embed_size)
+        self.e2p = ToPoincare(1.0, False, False)
+
+    def forward(self, x):
+        proto = self.encoder(x)
+        emb = self.e2p(proto)
+        return emb
 
 def init_encoder_model(embed_size, pretrained):
     model_ft = EncoderCNN(embed_size)
