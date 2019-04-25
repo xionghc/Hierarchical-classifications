@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+from tensorboardX import SummaryWriter
 
 from utils import save_checkpoint, accuracy, adjust_learning_rate, AverageMeter
 from folder import ImageFolder
@@ -15,6 +16,7 @@ from poincare import dist_p, dist_matrix
 from train_poin import train_label_emb
 
 best_acc1 = 0
+global_step = 0
 
 def main_worker(args):
     global best_acc1
@@ -117,6 +119,7 @@ def main_worker(args):
             'optimizer' : optimizer.state_dict(),
             }, is_best)
 
+writer = SummaryWriter()
 
 def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
     batch_time = AverageMeter()
@@ -124,8 +127,8 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
+    global global_step
 
-    label_norm = label_model.weight.norm(dim=1)
     # switch to train mode
     model.train()
 
@@ -158,6 +161,12 @@ def train(train_loader, model, label_model, criterion, optimizer, epoch, args):
         batch_time.update(time.time() - end)
         end = time.time()
 
+        if i % 100 == 99:
+            writer.add_scalar('train/loss', losses.val, epoch*len(train_loader)+i)
+            writer.add_scalar('train/top1.acc', top1.avg, epoch*len(train_loader)+i)
+            writer.add_scalar('train/top5.acc', top5.avg, epoch*len(train_loader)+i)
+
+
         if i % args.print_freq == args.print_freq - 1:
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
@@ -174,6 +183,7 @@ def validate(val_loader, model, label_model, criterion, args):
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
+    global global_step
 
     # switch to evaluate mode
     model.eval()
@@ -207,6 +217,11 @@ def validate(val_loader, model, label_model, criterion, args):
                       'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                        i, len(val_loader), batch_time=batch_time, loss=losses,
                        top1=top1, top5=top5))
+
+        global_step += 1
+        writer.add_scalar('val/loss', losses.val, global_step)
+        writer.add_scalar('val/top1', top1.avg, global_step)
+        writer.add_scalar('val/top5', top5.avg, global_step)
 
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
