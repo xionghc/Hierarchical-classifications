@@ -1,3 +1,5 @@
+import pmath
+
 import torch as th
 import torch.nn as nn
 
@@ -23,36 +25,6 @@ def dist_matrix(vectors1, vectors2):
     for i in range(w):
         rets[i, :] = dist_row(vectors1[i], vectors2)
     return rets
-
-
-def project(x, *, c=1.0):
-    r"""
-    Safe projection on the manifold for numerical stability. This was mentioned in [1]_
-    Parameters
-    ----------
-    x : tensor
-        point on the Poincare ball
-    c : float|tensor
-        ball negative curvature
-    Returns
-    -------
-    tensor
-        projected vector on the manifold
-    References
-    ----------
-    .. [1] Hyperbolic Neural Networks, NIPS2018
-        https://arxiv.org/abs/1805.09112
-    """
-    c = torch.as_tensor(c).type_as(x)
-    return _project(x, c)
-
-
-def _project(x, c):
-    norm = torch.clamp_min(x.norm(dim=-1, keepdim=True, p=2), 1e-5)
-    maxnorm = (1 - 1e-3) / (c ** 0.5)
-    cond = norm > maxnorm
-    projected = x / norm * maxnorm
-    return torch.where(cond, projected, x)
 
 
 class ToPoincare(nn.Module):

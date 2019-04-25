@@ -34,6 +34,7 @@ def set_parameter_requires_grad(model, feature_extracting):
 
 class HyperCNN(nn.Module):
     def __init__(self, embed_size):
+        super(HyperCNN, self).__init__()
         self.encoder = EncoderCNN(embed_size)
         self.e2p = ToPoincare(1.0, False, False)
 
@@ -43,7 +44,7 @@ class HyperCNN(nn.Module):
         return emb
 
 def init_encoder_model(embed_size, pretrained):
-    model_ft = EncoderCNN(embed_size)
+    model_ft = HyperCNN(embed_size)
 
     if pretrained:
         pre_state_dict = torch.load(pretrained)
